@@ -15,7 +15,7 @@ const configPath = './config.json'
 const screenshotFolder = './screenshots/';
 const baseUrl = 'https://www.twitch.tv/';
 const userAgent = (process.env.userAgent || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36');
-const streamersUrl = (process.env.streamersUrl || 'https://www.twitch.tv/directory/game/VALORANT?tl=c2542d6d-cd10-4532-919b-3d19f30a768b');
+const streamersUrl = (process.env.streamersUrl || 'https://www.twitch.tv/directory/game/Escape%20From%20Tarkov?tl=c2542d6d-cd10-4532-919b-3d19f30a768b');
 
 const scrollDelay = (Number(process.env.scrollDelay) || 2000);
 const scrollTimes = (Number(process.env.scrollTimes) || 5);
@@ -26,7 +26,7 @@ const maxWatching = (Number(process.env.maxWatching) || 30); //Minutes
 const streamerListRefresh = (Number(process.env.streamerListRefresh) || 1);
 const streamerListRefreshUnit = (process.env.streamerListRefreshUnit || 'hour'); //https://day.js.org/docs/en/manipulate/add
 
-const showBrowser = false; // false state equ headless mode;
+const showBrowser = true; // false state equ headless mode;
 const proxy = (process.env.proxy || ""); // "ip:port" By https://github.com/Jan710
 const proxyAuth = (process.env.proxyAuth || "");
 
@@ -48,8 +48,10 @@ var browserConfig = {
   ]
 }; //https://github.com/D3vl0per/Valorant-watcher/issues/24
 
+const adsQuery = 'span[data-test-selector="ad-banner-default-text"]';
 const cookiePolicyQuery = 'button[data-a-target="consent-banner-accept"]';
 const matureContentQuery = 'button[data-a-target="player-overlay-mature-accept"]';
+const hindsight2020Query = 'div.mega-commerce-callout__dismiss>button'
 const sidebarQuery = '*[data-test-selector="user-menu__toggle"]';
 const userStatusQuery = 'span[data-a-target="presence-text"]';
 const channelsQuery = 'a[data-test-selector*="ChannelLink"]';
@@ -80,6 +82,7 @@ async function viewRandomPage(browser, page) {
       }
 
       let watch = streamers[getRandomInt(0, streamers.length - 1)]; //https://github.com/D3vl0per/Valorant-watcher/issues/27
+	  if (!watch) continue;
       var sleep = getRandomInt(minWatching, maxWatching) * 60000; //Set watuching timer
 
       console.log('\n🔗 Now watching streamer: ', baseUrl + watch);
@@ -90,9 +93,9 @@ async function viewRandomPage(browser, page) {
 
       await clickWhenExist(page, cookiePolicyQuery);
       await clickWhenExist(page, matureContentQuery); //Click on accept button
-
       if (firstRun) {
         console.log('🔧 Setting lowest possible resolution..');
+        await clickWhenExist(page, hindsight2020Query); // Twitch has some 2020 hindsight popup atm.
         await clickWhenExist(page, streamPauseQuery);
 
         await clickWhenExist(page, streamSettingsQuery);
@@ -109,7 +112,7 @@ async function viewRandomPage(browser, page) {
 
         await clickWhenExist(page, streamPauseQuery);
 
-        await page.keyboard.press('m'); //For unmute
+        //await page.keyboard.press('m'); //For unmute
         firstRun = false;
       }
 
@@ -282,6 +285,11 @@ async function scroll(page, times) {
   for (var i = 0; i < times; i++) {
     await page.evaluate(async (page) => {
       var x = document.getElementsByClassName("scrollable-trigger__wrapper");
+	  
+	  if (x.length === 0) {
+		  return;
+	  }
+	  
       x[0].scrollIntoView();
     });
     await page.waitFor(scrollDelay);

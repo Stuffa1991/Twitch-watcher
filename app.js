@@ -21,6 +21,7 @@ const streamersUrl = `https://www.twitch.tv/directory/game/${encodeURI(game)}?tl
 const scrollDelay = (Number(process.env.scrollDelay) || 2000);
 const scrollTimes = (Number(process.env.scrollTimes) || 5);
 
+const waitIfNoActive = (Number(process.env.minWatching) || 1) // Minutes
 const minWatching = (Number(process.env.minWatching) || 15); // Minutes
 const maxWatching = (Number(process.env.maxWatching) || 30); //Minutes
 
@@ -83,8 +84,12 @@ async function viewRandomPage(browser, page) {
       }
 
       let watch = streamers[getRandomInt(0, streamers.length - 1)]; //https://github.com/D3vl0per/Valorant-watcher/issues/27
-	  if (!watch) continue;
-      var sleep = getRandomInt(minWatching, maxWatching) * 60000; //Set watuching timer
+      var sleep = getRandomInt(minWatching, maxWatching) * 60000; //Set watching timer
+	  if (!watch) { 
+		console.log('\n No active streamers, skipping this time');
+		await page.waitFor(waitIfNoActive * 60000);
+		continue;
+	  };
 
       console.log('\n🔗 Now watching streamer: ', baseUrl + watch);
 

@@ -85,11 +85,11 @@ async function viewRandomPage(browser, page) {
 
       let watch = streamers[getRandomInt(0, streamers.length - 1)]; //https://github.com/D3vl0per/Valorant-watcher/issues/27
       var sleep = getRandomInt(minWatching, maxWatching) * 60000; //Set watching timer
-	  if (!watch) { 
-		console.log('\n No active streamers, skipping this time');
-		await page.waitFor(waitIfNoActive * 60000);
-		continue;
-	  };
+      if (!watch) { 
+        console.log('\n No active streamers, skipping this time');
+        await page.waitFor(waitIfNoActive * 60000);
+        continue;
+      };
 
       console.log('\n🔗 Now watching streamer: ', baseUrl + watch);
 

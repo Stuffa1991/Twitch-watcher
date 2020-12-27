@@ -10,6 +10,7 @@ services:
       #- userAgent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36
       #- scrollDelay=2000
       #- scrollTimes=5
+      #- waitIfNoActive=1
       #- minWatching=6
       #- maxWatching=15
       #- streamerListRefres=2
@@ -17,5 +18,6 @@ services:
       #- browserScreenshot=false
       #- proxy=ip:port
       #- proxyAuth=username:password
+      #- game=Escape From Tarkov
     #volumes:
     #  - "./screenshots:/usr/src/app/screenshots"

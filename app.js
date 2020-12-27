@@ -21,7 +21,7 @@ const streamersUrl = `https://www.twitch.tv/directory/game/${encodeURI(game)}?tl
 const scrollDelay = (Number(process.env.scrollDelay) || 2000);
 const scrollTimes = (Number(process.env.scrollTimes) || 5);
 
-const waitIfNoActive = (Number(process.env.minWatching) || 1) // Minutes
+const waitIfNoActive = (Number(process.env.waitIfNoActive) || 1) // Minutes
 const minWatching = (Number(process.env.minWatching) || 15); // Minutes
 const maxWatching = (Number(process.env.maxWatching) || 30); //Minutes
 

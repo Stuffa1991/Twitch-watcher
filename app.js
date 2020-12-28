@@ -16,8 +16,9 @@ const screenshotFolder = './screenshots/';
 const baseUrl = 'https://www.twitch.tv/';
 const userAgent = (process.env.userAgent || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36');
 const game = process.env.game || 'Escape From Tarkov';
-const streamersUrl = `https://www.twitch.tv/directory/game/${encodeURI(game)}?tl=c2542d6d-cd10-4532-919b-3d19f30a768b`;
+const streamersUrl = `https://www.twitch.tv/directory/game/${encodeURI(game)}`;
 
+const scrollDisable = true;
 const scrollDelay = (Number(process.env.scrollDelay) || 2000);
 const scrollTimes = (Number(process.env.scrollTimes) || 5);
 
@@ -25,10 +26,11 @@ const waitIfNoActive = (Number(process.env.waitIfNoActive) || 1) // Minutes
 const minWatching = (Number(process.env.minWatching) || 15); // Minutes
 const maxWatching = (Number(process.env.maxWatching) || 30); //Minutes
 
+const watchTopStreamers = true;
 const streamerListRefresh = (Number(process.env.streamerListRefresh) || 1);
 const streamerListRefreshUnit = (process.env.streamerListRefreshUnit || 'hour'); //https://day.js.org/docs/en/manipulate/add
 
-const showBrowser = false; // false state equ headless mode;
+const showBrowser = true; // false state equ headless mode;
 const proxy = (process.env.proxy || ""); // "ip:port" By https://github.com/Jan710
 const proxyAuth = (process.env.proxyAuth || "");
 
@@ -50,7 +52,6 @@ var browserConfig = {
   ]
 }; //https://github.com/D3vl0per/Valorant-watcher/issues/24
 
-const adsQuery = 'span[data-test-selector="ad-banner-default-text"]';
 const cookiePolicyQuery = 'button[data-a-target="consent-banner-accept"]';
 const matureContentQuery = 'button[data-a-target="player-overlay-mature-accept"]';
 const hindsight2020Query = 'div.mega-commerce-callout__dismiss>button'
@@ -255,13 +256,16 @@ async function getAllStreamer(page) {
   await scroll(page, scrollTimes);
   const jquery = await queryOnWebsite(page, channelsQuery);
   streamers = null;
-  streamers = new Array();
+  streamers = [];
 
   console.log('🧹 Filtering out html codes...');
   for (var i = 0; i < jquery.length; i++) {
     streamers[i] = jquery[i].attribs.href.split("/")[1];
   }
-  return;
+
+  if (watchTopStreamers) {
+    streamers.length = 5;
+  }
 }
 
 
@@ -286,6 +290,10 @@ async function checkLogin(page) {
 
 
 async function scroll(page, times) {
+  if (scrollDisable) {
+    return;
+  }
+
   console.log('🔨 Emulating scrolling...');
 
   for (var i = 0; i < times; i++) {
@@ -300,7 +308,6 @@ async function scroll(page, times) {
     });
     await page.waitFor(scrollDelay);
   }
-  return;
 }
 
 
@@ -320,7 +327,6 @@ async function clickWhenExist(page, query) {
     if (result[0].type == 'tag' && result[0].name == 'button') {
       await page.click(query);
       await page.waitFor(500);
-      return;
     }
   } catch (e) {}
 }
@@ -350,7 +356,6 @@ async function killBrowser(browser, page) {
   const pages = await browser.pages();
   await pages.map((page) => page.close());
   treekill(browser.process().pid, 'SIGKILL');
-  return;
 }
 
 
@@ -375,7 +380,7 @@ async function main() {
   console.log("=========================");
   console.log('🔭 Running watcher...');
   await viewRandomPage(browser, page);
-};
+}
 
 main();
 

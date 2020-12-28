@@ -1,5 +1,5 @@
-
-
+<h1 align="center">Disclaimer</h1>
+<p align="center">This is a fork that i use for personal purposes, right now its made specifically for the EFT drop event</p>
 
 <h1 align="center">Twitch watcher</h1>
 <p align="center"> I spent two days watching Valorant streams to get a drop. I got bored...</p>

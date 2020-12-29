@@ -30,7 +30,7 @@ const watchTopStreamers = true;
 const streamerListRefresh = (Number(process.env.streamerListRefresh) || 1);
 const streamerListRefreshUnit = (process.env.streamerListRefreshUnit || 'hour'); //https://day.js.org/docs/en/manipulate/add
 
-const showBrowser = true; // false state equ headless mode;
+const showBrowser = false; // false state equ headless mode;
 const proxy = (process.env.proxy || ""); // "ip:port" By https://github.com/Jan710
 const proxyAuth = (process.env.proxyAuth || "");
 
@@ -144,7 +144,6 @@ async function viewRandomPage(browser, page) {
       await clickWhenExist(page, sidebarQuery); //Close sidebar
 
       const hasDrops = await queryOnWebsite(page, dropQuery);
-      console.log(streamers);
       if (hasDrops.length === 0) {
         console.log('Streamer currently does not have drops skipping..');
 

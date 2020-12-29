@@ -30,7 +30,7 @@ const watchTopStreamers = true;
 const streamerListRefresh = (Number(process.env.streamerListRefresh) || 1);
 const streamerListRefreshUnit = (process.env.streamerListRefreshUnit || 'hour'); //https://day.js.org/docs/en/manipulate/add
 
-const showBrowser = false; // false state equ headless mode;
+const showBrowser = true; // false state equ headless mode;
 const proxy = (process.env.proxy || ""); // "ip:port" By https://github.com/Jan710
 const proxyAuth = (process.env.proxyAuth || "");
 
@@ -52,6 +52,7 @@ var browserConfig = {
   ]
 }; //https://github.com/D3vl0per/Valorant-watcher/issues/24
 
+const dropQuery = 'p[data-test-selector="drops-campaign-details"]';
 const cookiePolicyQuery = 'button[data-a-target="consent-banner-accept"]';
 const matureContentQuery = 'button[data-a-target="player-overlay-mature-accept"]';
 const hindsight2020Query = 'div.mega-commerce-callout__dismiss>button'
@@ -90,7 +91,7 @@ async function viewRandomPage(browser, page) {
         console.log('\n No active streamers, skipping this time');
         await page.waitFor(waitIfNoActive * 60000);
         continue;
-      };
+      }
 
       console.log('\n🔗 Now watching streamer: ', baseUrl + watch);
 
@@ -100,6 +101,7 @@ async function viewRandomPage(browser, page) {
 
       await clickWhenExist(page, cookiePolicyQuery);
       await clickWhenExist(page, matureContentQuery); //Click on accept button
+
       if (firstRun) {
         console.log('🔧 Setting lowest possible resolution..');
         await clickWhenExist(page, hindsight2020Query); // Twitch has some 2020 hindsight popup atm.
@@ -123,7 +125,6 @@ async function viewRandomPage(browser, page) {
         firstRun = false;
       }
 
-
       if (browserScreenshot) {
         await page.waitFor(1000);
         fs.access(screenshotFolder, error => {
@@ -141,6 +142,19 @@ async function viewRandomPage(browser, page) {
       await page.waitFor(userStatusQuery); //Waiting for sidebar
       let status = await queryOnWebsite(page, userStatusQuery); //status jQuery
       await clickWhenExist(page, sidebarQuery); //Close sidebar
+
+      const hasDrops = await queryOnWebsite(page, dropQuery);
+      console.log(streamers);
+      if (hasDrops.length === 0) {
+        console.log('Streamer currently does not have drops skipping..');
+
+        // Remove the non drop streamer from the pool
+        streamers.splice(streamers.indexOf(watch), 1);
+
+        // Wait 2 seconds then skip
+        await page.waitFor(2000);
+        continue;
+      }
 
       console.log('💡 Account status:', status[0] ? status[0].children[0].data : "Unknown");
       console.log('🕒 Time: ' + dayjs().format('HH:mm:ss'));
@@ -264,7 +278,7 @@ async function getAllStreamer(page) {
   }
 
   if (watchTopStreamers) {
-    streamers.length = 5;
+    streamers.length = 10;
   }
 }
 

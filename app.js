@@ -149,6 +149,11 @@ async function viewRandomPage(browser, page) {
 
         // Remove the non drop streamer from the pool
         streamers.splice(streamers.indexOf(watch), 1);
+		
+		if (streamers.length === 0) {
+			await getAllStreamer(page); //Call getAllStreamer function and refresh the list
+			streamer_last_refresh = dayjs().add(streamerListRefresh, streamerListRefreshUnit); //https://github.com/D3vl0per/Valorant-watcher/issues/25	
+		}
 
         // Wait 2 seconds then skip
         await page.waitFor(2000);

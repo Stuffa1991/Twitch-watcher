@@ -16,7 +16,7 @@ const screenshotFolder = './screenshots/';
 const baseUrl = 'https://www.twitch.tv/';
 const userAgent = (process.env.userAgent || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36');
 const game = process.env.game || 'Escape From Tarkov';
-const streamersUrl = `https://www.twitch.tv/directory/game/${encodeURI(game)}`;
+const streamersUrl = `https://www.twitch.tv/directory/game/${encodeURI(game)}?sort=VIEWER_COUNT`;
 
 const scrollDisable = true;
 const scrollDelay = (Number(process.env.scrollDelay) || 2000);
@@ -30,7 +30,7 @@ const watchTopStreamers = true;
 const streamerListRefresh = (Number(process.env.streamerListRefresh) || 1);
 const streamerListRefreshUnit = (process.env.streamerListRefreshUnit || 'hour'); //https://day.js.org/docs/en/manipulate/add
 
-const showBrowser = false; // false state equ headless mode;
+const showBrowser = true; // false state equ headless mode;
 const proxy = (process.env.proxy || ""); // "ip:port" By https://github.com/Jan710
 const proxyAuth = (process.env.proxyAuth || "");
 
@@ -268,6 +268,7 @@ async function getAllStreamer(page) {
   await page.goto(streamersUrl, {
     "waitUntil": "networkidle0"
   });
+  
   console.log('🔐 Checking login...');
   await checkLogin(page);
   console.log('📡 Checking active streamers...');
@@ -397,7 +398,7 @@ async function main() {
   await getAllStreamer(page);
   console.log("=========================");
   console.log('🔭 Running watcher...');
-  await viewRandomPage(browser, page);
+  //await viewRandomPage(browser, page);
 }
 
 main();

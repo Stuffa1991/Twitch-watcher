@@ -2,39 +2,22 @@ require('dotenv').config();
 const puppeteer = require('puppeteer-core');
 const dayjs = require('dayjs');
 const cheerio = require('cheerio');
-var fs = require('fs');
+const fs = require('fs');
 const inquirer = require('./input');
 const treekill = require('tree-kill');
 
 var run = true;
 var firstRun = true;
 var cookie = null;
-var streamers = null;
 // ========================================== CONFIG SECTION =================================================================
 const configPath = './config.json'
-const screenshotFolder = './screenshots/';
 const baseUrl = 'https://www.twitch.tv/';
 const userAgent = (process.env.userAgent || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36');
-const game = process.env.game || 'Escape From Tarkov';
-const streamersUrl = `https://www.twitch.tv/directory/game/${encodeURI(game)}?sort=VIEWER_COUNT`;
+const watch = 'myth';
 
-const scrollDisable = true;
-const scrollDelay = (Number(process.env.scrollDelay) || 2000);
-const scrollTimes = (Number(process.env.scrollTimes) || 5);
-
-const waitIfNoActive = (Number(process.env.waitIfNoActive) || 1) // Minutes
-const minWatching = (Number(process.env.minWatching) || 15); // Minutes
-const maxWatching = (Number(process.env.maxWatching) || 30); //Minutes
-
-const watchTopStreamers = true;
-const streamerListRefresh = (Number(process.env.streamerListRefresh) || 1);
-const streamerListRefreshUnit = (process.env.streamerListRefreshUnit || 'hour'); //https://day.js.org/docs/en/manipulate/add
-
-const showBrowser = true; // false state equ headless mode;
+const showBrowser = false; // false state equ headless mode;
 const proxy = (process.env.proxy || ""); // "ip:port" By https://github.com/Jan710
 const proxyAuth = (process.env.proxyAuth || "");
-
-const browserScreenshot = (process.env.browserScreenshot || false);
 
 const browserClean = 1;
 const browserCleanUnit = 'hour';
@@ -52,13 +35,11 @@ var browserConfig = {
   ]
 }; //https://github.com/D3vl0per/Valorant-watcher/issues/24
 
-const dropQuery = 'p[data-test-selector="drops-campaign-details"]';
 const cookiePolicyQuery = 'button[data-a-target="consent-banner-accept"]';
 const matureContentQuery = 'button[data-a-target="player-overlay-mature-accept"]';
 const hindsight2020Query = 'div.mega-commerce-callout__dismiss>button'
 const sidebarQuery = '*[data-test-selector="user-menu__toggle"]';
 const userStatusQuery = 'span[data-a-target="presence-text"]';
-const channelsQuery = 'div[data-target="directory-container"] a[data-test-selector*="ChannelLink"]';
 const streamPauseQuery = 'button[data-a-target="player-play-pause-button"]';
 const streamSettingsQuery = '[data-a-target="player-settings-button"]';
 const streamQualitySettingQuery = '[data-a-target="player-settings-menu-item-quality"]';
@@ -67,8 +48,7 @@ const streamQualityQuery = 'input[data-a-target="tw-radio"]';
 
 
 
-async function viewRandomPage(browser, page) {
-  var streamer_last_refresh = dayjs().add(streamerListRefresh, streamerListRefreshUnit);
+async function viewStreamer(browser, page) {
   var browser_last_refresh = dayjs().add(browserClean, browserCleanUnit);
   while (run) {
     try {
@@ -78,19 +58,6 @@ async function viewRandomPage(browser, page) {
         page = newSpawn.page;
         firstRun = true;
         browser_last_refresh = dayjs().add(browserClean, browserCleanUnit);
-      }
-
-      if (dayjs(streamer_last_refresh).isBefore(dayjs())) {
-        await getAllStreamer(page); //Call getAllStreamer function and refresh the list
-        streamer_last_refresh = dayjs().add(streamerListRefresh, streamerListRefreshUnit); //https://github.com/D3vl0per/Valorant-watcher/issues/25
-      }
-
-      let watch = streamers[getRandomInt(0, streamers.length - 1)]; //https://github.com/D3vl0per/Valorant-watcher/issues/27
-      var sleep = getRandomInt(minWatching, maxWatching) * 60000; //Set watching timer
-      if (!watch) { 
-        console.log('\n No active streamers, skipping this time');
-        await page.waitFor(waitIfNoActive * 60000);
-        continue;
       }
 
       console.log('\n🔗 Now watching streamer: ', baseUrl + watch);
@@ -121,44 +88,14 @@ async function viewRandomPage(browser, page) {
 
         await clickWhenExist(page, streamPauseQuery);
 
-        //await page.keyboard.press('m'); //For unmute
         firstRun = false;
-      }
-
-      if (browserScreenshot) {
-        await page.waitFor(1000);
-        fs.access(screenshotFolder, error => {
-          if (error) {
-            fs.promises.mkdir(screenshotFolder);
-          }
-        });
-        await page.screenshot({
-          path: `${screenshotFolder}${watch}.png`
-        });
-        console.log('📸 Screenshot created: ' + `${watch}.png`);
       }
 
       await clickWhenExist(page, sidebarQuery); //Open sidebar
       await page.waitFor(userStatusQuery); //Waiting for sidebar
       let status = await queryOnWebsite(page, userStatusQuery); //status jQuery
       await clickWhenExist(page, sidebarQuery); //Close sidebar
-
-      const hasDrops = await queryOnWebsite(page, dropQuery);
-      if (hasDrops.length === 0) {
-        console.log('Streamer currently does not have drops skipping..');
-
-        // Remove the non drop streamer from the pool
-        streamers.splice(streamers.indexOf(watch), 1);
-		
-		if (streamers.length === 0) {
-			await getAllStreamer(page); //Call getAllStreamer function and refresh the list
-			streamer_last_refresh = dayjs().add(streamerListRefresh, streamerListRefreshUnit); //https://github.com/D3vl0per/Valorant-watcher/issues/25	
-		}
-
-        // Wait 2 seconds then skip
-        await page.waitFor(2000);
-        continue;
-      }
+      const sleep = 60 * 60000; // Sleeping minutes
 
       console.log('💡 Account status:', status[0] ? status[0].children[0].data : "Unknown");
       console.log('🕒 Time: ' + dayjs().format('HH:mm:ss'));
@@ -262,88 +199,11 @@ async function spawnBrowser() {
 }
 
 
-
-async function getAllStreamer(page) {
-  console.log("=========================");
-  await page.goto(streamersUrl, {
-    "waitUntil": "networkidle0"
-  });
-  
-  console.log('🔐 Checking login...');
-  await checkLogin(page);
-  console.log('📡 Checking active streamers...');
-  await scroll(page, scrollTimes);
-  const jquery = await queryOnWebsite(page, channelsQuery);
-  streamers = null;
-  streamers = [];
-
-  console.log('🧹 Filtering out html codes...');
-  for (var i = 0; i < jquery.length; i++) {
-    streamers[i] = jquery[i].attribs.href.split("/")[1];
-  }
-
-  if (watchTopStreamers) {
-    streamers.length = 10;
-  }
-}
-
-
-
-async function checkLogin(page) {
-  let cookieSetByServer = await page.cookies();
-  for (var i = 0; i < cookieSetByServer.length; i++) {
-    if (cookieSetByServer[i].name == 'twilight-user') {
-      console.log('✅ Login successful!');
-      return true;
-    }
-  }
-  console.log('🛑 Login failed!');
-  console.log('🔑 Invalid token!');
-  console.log('\nPleas ensure that you have a valid twitch auth-token.\nhttps://github.com/D3vl0per/Valorant-watcher#how-token-does-it-look-like');
-  if (!process.env.token) {
-    fs.unlinkSync(configPath);
-  }
-  process.exit();
-}
-
-
-
-async function scroll(page, times) {
-  if (scrollDisable) {
-    return;
-  }
-
-  console.log('🔨 Emulating scrolling...');
-
-  for (var i = 0; i < times; i++) {
-    await page.evaluate(async (page) => {
-      var x = document.getElementsByClassName("scrollable-trigger__wrapper");
-	  
-	  if (x.length === 0) {
-		  return;
-	  }
-	  
-      x[0].scrollIntoView();
-    });
-    await page.waitFor(scrollDelay);
-  }
-}
-
-
-
-function getRandomInt(min, max) {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-
-
 async function clickWhenExist(page, query) {
   let result = await queryOnWebsite(page, query);
 
   try {
-    if (result[0].type == 'tag' && result[0].name == 'button') {
+    if (result[0].type === 'tag' && result[0].name === 'button') {
       await page.click(query);
       await page.waitFor(500);
     }
@@ -395,13 +255,14 @@ async function main() {
     browser,
     page
   } = await spawnBrowser();
-  await getAllStreamer(page);
   console.log("=========================");
   console.log('🔭 Running watcher...');
-  //await viewRandomPage(browser, page);
+  await viewStreamer(browser, page);
 }
 
-main();
+(async () => {
+  await main();
+})();
 
 process.on("SIGINT", shutDown);
 process.on("SIGTERM", shutDown);

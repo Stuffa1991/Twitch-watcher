@@ -13,14 +13,11 @@ var cookie = null;
 const configPath = './config.json'
 const baseUrl = 'https://www.twitch.tv/';
 const userAgent = (process.env.userAgent || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36');
-const watch = 'myth';
+const streamers = ['auronplay', 'jacksepticeye', 'lilypichu', 'ludwig', 'myth', 'sykkuno', 'xqcow'];
 
-const showBrowser = false; // false state equ headless mode;
+const showBrowser = true; // false state equ headless mode;
 const proxy = (process.env.proxy || ""); // "ip:port" By https://github.com/Jan710
 const proxyAuth = (process.env.proxyAuth || "");
-
-const browserClean = 1;
-const browserCleanUnit = 'hour';
 
 var browserConfig = {
   headless: !showBrowser,
@@ -48,65 +45,47 @@ const streamQualityQuery = 'input[data-a-target="tw-radio"]';
 
 
 
-async function viewStreamer(browser, page) {
-  var browser_last_refresh = dayjs().add(browserClean, browserCleanUnit);
-  while (run) {
-    try {
-      if (dayjs(browser_last_refresh).isBefore(dayjs())) {
-        var newSpawn = await cleanup(browser, page);
-        browser = newSpawn.browser;
-        page = newSpawn.page;
-        firstRun = true;
-        browser_last_refresh = dayjs().add(browserClean, browserCleanUnit);
-      }
+async function viewStreamer(browser, page, watch) {
+  console.log('\n🔗 Now watching streamer: ', baseUrl + watch);
 
-      console.log('\n🔗 Now watching streamer: ', baseUrl + watch);
+  await page.goto(baseUrl + watch, {
+    "waitUntil": "networkidle0"
+  }); //https://github.com/puppeteer/puppeteer/blob/master/docs/api.md#pagegobackoptions
 
-      await page.goto(baseUrl + watch, {
-        "waitUntil": "networkidle0"
-      }); //https://github.com/puppeteer/puppeteer/blob/master/docs/api.md#pagegobackoptions
+  await clickWhenExist(page, cookiePolicyQuery);
+  await clickWhenExist(page, matureContentQuery); //Click on accept button
 
-      await clickWhenExist(page, cookiePolicyQuery);
-      await clickWhenExist(page, matureContentQuery); //Click on accept button
+  if (firstRun) {
+    console.log('🔧 Setting lowest possible resolution..');
+    await clickWhenExist(page, hindsight2020Query); // Twitch has some 2020 hindsight popup atm.
+    await clickWhenExist(page, streamPauseQuery);
 
-      if (firstRun) {
-        console.log('🔧 Setting lowest possible resolution..');
-        await clickWhenExist(page, hindsight2020Query); // Twitch has some 2020 hindsight popup atm.
-        await clickWhenExist(page, streamPauseQuery);
+    await clickWhenExist(page, streamSettingsQuery);
+    await page.waitFor(streamQualitySettingQuery);
 
-        await clickWhenExist(page, streamSettingsQuery);
-        await page.waitFor(streamQualitySettingQuery);
+    await clickWhenExist(page, streamQualitySettingQuery);
+    await page.waitFor(streamQualityQuery);
 
-        await clickWhenExist(page, streamQualitySettingQuery);
-        await page.waitFor(streamQualityQuery);
+    var resolution = await queryOnWebsite(page, streamQualityQuery);
+    resolution = resolution[resolution.length - 1].attribs.id;
+    await page.evaluate((resolution) => {
+      document.getElementById(resolution).click();
+    }, resolution);
 
-        var resolution = await queryOnWebsite(page, streamQualityQuery);
-        resolution = resolution[resolution.length - 1].attribs.id;
-        await page.evaluate((resolution) => {
-          document.getElementById(resolution).click();
-        }, resolution);
+    await clickWhenExist(page, streamPauseQuery);
 
-        await clickWhenExist(page, streamPauseQuery);
-
-        firstRun = false;
-      }
-
-      await clickWhenExist(page, sidebarQuery); //Open sidebar
-      await page.waitFor(userStatusQuery); //Waiting for sidebar
-      let status = await queryOnWebsite(page, userStatusQuery); //status jQuery
-      await clickWhenExist(page, sidebarQuery); //Close sidebar
-      const sleep = 60 * 60000; // Sleeping minutes
-
-      console.log('💡 Account status:', status[0] ? status[0].children[0].data : "Unknown");
-      console.log('🕒 Time: ' + dayjs().format('HH:mm:ss'));
-      console.log('💤 Watching stream for ' + sleep / 60000 + ' minutes\n');
-
-      await page.waitFor(sleep);
-    } catch (e) {
-      console.log('🤬 Error: ', e);
-      console.log('Please visit the discord channel to receive help: https://discord.gg/s8AH4aZ');
-    }
+    firstRun = false;
   }
+
+  await clickWhenExist(page, sidebarQuery); //Open sidebar
+  await page.waitFor(userStatusQuery); //Waiting for sidebar
+  let status = await queryOnWebsite(page, userStatusQuery); //status jQuery
+  await clickWhenExist(page, sidebarQuery); //Close sidebar
+  const sleep = 60 * 60000; // Sleeping minutes
+
+  console.log('💡 Account status:', status[0] ? status[0].children[0].data : "Unknown");
+  console.log('🕒 Time: ' + dayjs().format('HH:mm:ss'));
+  console.log('💤 Watching stream for ' + sleep / 60000 + ' minutes\n');
 }
 
 
@@ -174,6 +153,12 @@ async function spawnBrowser() {
   console.log("=========================");
   console.log('📱 Launching browser...');
   var browser = await puppeteer.launch(browserConfig);
+
+  return browser;
+}
+
+
+async function spawnPage(browser) {
   var page = await browser.newPage();
 
   console.log('🔧 Setting User-Agent...');
@@ -192,10 +177,7 @@ async function spawnBrowser() {
     })
   }
 
-  return {
-    browser,
-    page
-  };
+  return page;
 }
 
 
@@ -251,13 +233,14 @@ async function main() {
   console.clear();
   console.log("=========================");
   cookie = await readLoginData();
-  var {
-    browser,
-    page
-  } = await spawnBrowser();
+  var browser = await spawnBrowser();
   console.log("=========================");
   console.log('🔭 Running watcher...');
-  await viewStreamer(browser, page);
+  for (let i = 0; i < streamers.length; i++) {
+    var streamer = streamers[i];
+    var page = await spawnPage(browser);
+    await viewStreamer(browser, page, streamer);
+  }
 }
 
 (async () => {
